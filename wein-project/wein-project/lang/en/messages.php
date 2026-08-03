@@ -125,4 +125,13 @@ return [
     'english'             => 'English',
     'created_at'          => 'Created At',
     'updated_at'          => 'Updated At',
+
+    // Admin price update
+    'set_price'           => 'Set Price',
+    'set_customer_price'  => 'Set Customer Price',
+    'price_not_set'       => 'Price not set yet',
+    'filter_by_status'    => 'Filter by Status',
+    'filter_by_order'     => 'Filter by Order',
+    'all_statuses'        => 'All Statuses',
+    'all_orders'          => 'All Orders',
 ];

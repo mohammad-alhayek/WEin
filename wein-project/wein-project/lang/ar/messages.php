@@ -125,4 +125,13 @@ return [
     'english'             => 'الإنجليزية',
     'created_at'          => 'تاريخ الإنشاء',
     'updated_at'          => 'تاريخ التحديث',
+
+    // Admin price update
+    'set_price'           => 'تحديد السعر',
+    'set_customer_price'  => 'تحديد سعر العميل',
+    'price_not_set'       => 'لم يتم تحديد السعر بعد',
+    'filter_by_status'    => 'تصفية حسب الحالة',
+    'filter_by_order'     => 'تصفية حسب الطلب',
+    'all_statuses'        => 'جميع الحالات',
+    'all_orders'          => 'جميع الطلبات',
 ];

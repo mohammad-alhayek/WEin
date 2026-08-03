@@ -2,12 +2,26 @@
 @section('title', __('messages.instant_orders'))
 
 @section('content')
-<div class="page-header">
-    <h1>⚡ {{ __('messages.instant_orders') }}</h1>
+
+<div class="pub-idx-header">
+    <h1 style="margin:0;font-size:1.6rem;font-weight:800">⚡ {{ __('messages.instant_orders') }}</h1>
     <div class="view-toggle">
         <button data-view="card" class="active" title="Card View">⊞</button>
         <button data-view="list" title="List View">☰</button>
     </div>
+</div>
+
+{{-- Search + Status filter --}}
+<div class="pub-filter-bar">
+    <div class="pub-search-wrap">
+        <span class="pub-filter-icon">🔍</span>
+        <input type="text" id="searchInput" class="pub-filter-input" placeholder="{{ __('messages.search') }}...">
+    </div>
+    <select id="statusFilter" class="pub-filter-select">
+        <option value="">{{ __('messages.all_statuses') }}</option>
+        <option value="Available">{{ __('messages.Available') }}</option>
+        <option value="SoldOut">{{ __('messages.SoldOut') }}</option>
+    </select>
 </div>
 
 @if($products->isEmpty())
@@ -18,7 +32,9 @@
 @else
     <div id="products-container" class="products-grid">
         @foreach($products as $product)
-        <div class="product-card">
+        <div class="product-card io-filterable"
+             data-status="{{ $product->status }}"
+             data-title="{{ strtolower($product->title) }} {{ strtolower($product->description ?? '') }}">
             @if($product->image_url)
                 <img src="{{ $product->image_url }}" alt="{{ $product->title }}" loading="lazy">
             @else
@@ -26,6 +42,9 @@
             @endif
             <div class="product-body">
                 <div class="product-title">{{ $product->title }}</div>
+                <span class="badge badge-{{ strtolower($product->status) }}" style="margin:.25rem 0 .5rem">
+                    {{ __('messages.' . $product->status) }}
+                </span>
                 @if($product->description)
                     <p style="font-size:.85rem;color:var(--text-muted);margin:.4rem 0">{{ Str::limit($product->description, 80) }}</p>
                 @endif
@@ -34,7 +53,10 @@
                         <div class="product-price">{{ number_format($product->price, 2) }}</div>
                         <small class="text-muted">+{{ number_format($product->delivery_price, 2) }} delivery · {{ $product->quantity }} left</small>
                     </div>
-                    <button class="btn btn-primary btn-sm" onclick="openReserveModal({{ $product->id }}, '{{ addslashes($product->title) }}', {{ $product->quantity }})">
+                    <button
+                        class="btn btn-primary btn-sm"
+                        onclick="openReserveModal({{ $product->id }}, '{{ addslashes($product->title) }}', {{ $product->quantity }})"
+                        {{ $product->status !== 'Available' ? 'disabled' : '' }}>
                         {{ __('messages.reserve') }}
                     </button>
                 </div>
@@ -44,6 +66,9 @@
             </div>
         </div>
         @endforeach
+    </div>
+    <div id="noResults" style="display:none" class="empty-state">
+        <p>{{ __('messages.no_orders_found') }}</p>
     </div>
 @endif
 
@@ -141,7 +166,23 @@
 
 @endsection
 
-@section('scripts')
+@push('styles')
+<style>
+.pub-idx-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem}
+.pub-filter-bar{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-bottom:1.25rem}
+.pub-search-wrap{position:relative;flex:1;min-width:180px}
+.pub-filter-icon{position:absolute;inset-inline-start:.85rem;top:50%;transform:translateY(-50%);pointer-events:none;font-size:.9rem}
+.pub-filter-input{width:100%;padding:.6rem .9rem .6rem 2.2rem;border-radius:14px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:.9rem}
+.pub-filter-select{padding:.6rem .9rem;border-radius:14px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:.9rem;min-width:150px}
+
+@media(max-width:540px){
+    .pub-filter-bar{flex-direction:column}
+    .pub-filter-input,.pub-filter-select{width:100%}
+}
+</style>
+@endpush
+
+@push('scripts')
 <script>
 function openReserveModal(productId, productTitle, maxQty) {
     document.getElementById('modal-product-title').textContent = productTitle;
@@ -151,5 +192,29 @@ function openReserveModal(productId, productTitle, maxQty) {
     qtyInput.value = 1;
     openModal('reserve-modal');
 }
+
+(function(){
+    const search   = document.getElementById('searchInput');
+    const status   = document.getElementById('statusFilter');
+    const cards    = document.querySelectorAll('.io-filterable');
+    const noResult = document.getElementById('noResults');
+
+    function filterCards(){
+        const kw  = search.value.toLowerCase();
+        const st  = status.value;
+        let visible = 0;
+        cards.forEach(card => {
+            const matchKw = !kw || card.getAttribute('data-title').includes(kw) || card.innerText.toLowerCase().includes(kw);
+            const matchSt = !st || card.getAttribute('data-status') === st;
+            const show    = matchKw && matchSt;
+            card.style.display = show ? '' : 'none';
+            if(show) visible++;
+        });
+        if(noResult) noResult.style.display = visible === 0 ? '' : 'none';
+    }
+
+    if(search) search.addEventListener('input', filterCards);
+    if(status) status.addEventListener('change', filterCards);
+})();
 </script>
-@endsection
+@endpush

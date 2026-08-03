@@ -63,40 +63,70 @@ class CustomerOrderController extends Controller
 public function getChatStatus($id)
 {
     try {
-        // استخدام findOrFail للبحث برقم الـ ID مباشرة وتجنب العلاقات المفقودة
         $customerOrder = CustomerOrder::with('order')->findOrFail($id);
-        
-        // استخراج اسم العميل من الحقل المباشر بدلاً من علاقة user إذا لم تكن موجودة
-        $userName = $customerOrder->customer_name ?? 'عزيزنا العميل';
-        
-        // التحقق من السعر
-        $priceText = $customerOrder->price 
-            ? "المبلغ الإجمالي لطلبيتك هو: " . number_format($customerOrder->total_price, 2) . " ريال." 
-            : "السعر النهائي لم يتم تحديده من قبل الإدارة بعد، سيتم إعلامك فور تحديثه.";
 
-        // التحقق من تاريخ الوصول المتوقع إن وجد في الطلب الرئيسي
+        $userName    = $customerOrder->customer_name ?? 'عزيزنا العميل';
+        $orderId     = $customerOrder->id;
+        $orderTitle  = $customerOrder->order->title ?? '—';
+        $orderStatus = $customerOrder->order->status ?? '—';
+
+        // السعر والتفاصيل المالية
+        $priceSet = (float) $customerOrder->price > 0;
+        if ($priceSet) {
+            $priceLines =
+                "💵 سعر السلة: " . number_format($customerOrder->price, 2) . " ر.س\n" .
+                "🚚 سعر التوصيل: " . number_format($customerOrder->delivery_price, 2) . " ر.س\n" .
+                "🧾 الضريبة: " . number_format($customerOrder->tax, 2) . "%\n" .
+                "💰 الإجمالي الكلي: " . number_format($customerOrder->total_price, 2) . " ر.س";
+        } else {
+            $priceLines = "⏳ سعر السلة لم يتم تحديده بعد من قبل الإدارة — سيتم إشعارك فور التحديث.";
+        }
+
+        // تاريخ الوصول المتوقع
         $arrivalText = ($customerOrder->order && $customerOrder->order->expected_arrival_date)
-            ? Carbon::parse($customerOrder->order->expected_arrival_date)->format('d M Y') 
-            : "قريباً تحديد موعد الوصول";
+            ? Carbon::parse($customerOrder->order->expected_arrival_date)->format('d M Y')
+            : 'لم يتحدد بعد';
 
-        $status = $customerOrder->status ?? 'قيد المعالجة';
-        
-        $botMessage = "مرحباً {$userName}! 👋\n\n" .
-                      "تفاصيل طلبيتك رقم (#{$customerOrder->id}):\n" .
-                      "📌 حالة الطلب: {$status}\n" .
-                      "💰 {$priceText}\n" .
-                      "📅 موعد الوصول: {$arrivalText}\n\n" .
-                      "نحن هنا دائماً لخدمتك!";
+        // الموقع
+        $locationLine = $customerOrder->location
+            ? "📍 موقع التسليم: {$customerOrder->location}"
+            : "📍 موقع التسليم: غير محدد";
+
+        // رابط السلة
+        $cartLine = $customerOrder->cart_url
+            ? "🛒 رابط السلة: مسجّل ✓"
+            : "🛒 رابط السلة: لم يُضف بعد";
+
+        // آخر تعديل من العميل
+        $modifiedLine = $customerOrder->is_updated
+            ? "✏️ آخر تعديل: " . $customerOrder->updated_by_customer_at?->format('d M Y H:i')
+            : "✏️ لم تجرِ أي تعديلات على الطلب";
+
+        $botMessage =
+            "مرحباً {$userName}! 👋\n\n" .
+            "━━━━━━━━━━━━━━━━━━\n" .
+            "📋 تفاصيل طلبيتك رقم #{$orderId}\n" .
+            "━━━━━━━━━━━━━━━━━━\n\n" .
+            "📦 الطلب الرئيسي: {$orderTitle}\n" .
+            "🔄 حالة الطلب: {$orderStatus}\n" .
+            "📅 موعد الوصول المتوقع: {$arrivalText}\n\n" .
+            "━━━ التفاصيل المالية ━━━\n" .
+            "{$priceLines}\n\n" .
+            "━━━ معلومات إضافية ━━━\n" .
+            "{$locationLine}\n" .
+            "{$cartLine}\n" .
+            "{$modifiedLine}\n\n" .
+            "نحن هنا دائماً لخدمتك! 🌟";
 
         return response()->json([
             'success' => true,
-            'message' => $botMessage
+            'message' => $botMessage,
         ]);
 
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,
-            'message' => 'عذراً، حدث خطأ في النظام أو أن الطلب غير موجود.'
+            'message' => 'عذراً، حدث خطأ في النظام أو أن الطلب غير موجود.',
         ], 500);
     }
 }

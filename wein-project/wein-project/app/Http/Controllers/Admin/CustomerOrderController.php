@@ -44,6 +44,32 @@ class CustomerOrderController extends Controller
         return view('admin.customer-orders.show', compact('customerOrder'));
     }
 
+    public function updatePrice(Request $request, $id)
+    {
+        if (!is_numeric($id)) {
+            abort(404);
+        }
+
+        $customerOrder = CustomerOrder::with('order')->findOrFail($id);
+
+        $data = $request->validate([
+            'price' => 'required|numeric|min:0',
+        ]);
+
+        $price         = (float) $data['price'];
+        $deliveryPrice = (float) $customerOrder->delivery_price;
+        $tax           = (float) $customerOrder->tax;
+        $subtotal      = $price + $deliveryPrice;
+        $totalPrice    = $subtotal + ($subtotal * $tax / 100);
+
+        $customerOrder->update([
+            'price'       => $price,
+            'total_price' => $totalPrice,
+        ]);
+
+        return back()->with('success', __('messages.updated_successfully'));
+    }
+
     public function destroy($id)
     {
         if (!is_numeric($id)) {

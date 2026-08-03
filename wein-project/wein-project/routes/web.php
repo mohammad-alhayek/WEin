@@ -101,6 +101,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/customer-orders/{customerOrder}', [AdminCustomerOrderController::class, 'show'])
             ->whereNumber('customerOrder')
             ->name('customer-orders.show');
+
+        Route::patch('/customer-orders/{customerOrder}/price', [AdminCustomerOrderController::class, 'updatePrice'])
+            ->whereNumber('customerOrder')
+            ->name('customer-orders.update-price');
             
         Route::delete('/customer-orders/{customerOrder}', [AdminCustomerOrderController::class, 'destroy'])
             ->whereNumber('customerOrder')
