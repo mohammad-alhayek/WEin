@@ -119,7 +119,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // ── Mobile Sidebar Toggle ───────────────────────
 function toggleSidebar() {
-    document.querySelector('.sidebar')?.classList.toggle('open');
+    const sidebar  = document.getElementById('sidebar') || document.querySelector('.sidebar');
+    const overlay  = document.getElementById('sidebarOverlay');
+    if (sidebar) sidebar.classList.toggle('open');
+    if (overlay) overlay.classList.toggle('open');
 }
 
 // ── Confirm Delete ──────────────────────────────

@@ -12,6 +12,7 @@ use App\Http\Controllers\Public\OrderController;
 use App\Http\Controllers\Public\CustomerOrderController;
 use App\Http\Controllers\Public\InstantOrderController;
 use App\Http\Controllers\Public\SettingsController;
+use App\Http\Controllers\Admin\SiteSettingsController;
 // ──────────────────────────────────────────────
 // Public Routes
 // ──────────────────────────────────────────────
@@ -115,6 +116,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Delivery Areas
         Route::resource('delivery-areas', DeliveryAreaController::class)->except(['show']);
+
+        // Site Settings
+        Route::get('/settings', [SiteSettingsController::class, 'index'])->name('site-settings.index');
+        Route::put('/settings', [SiteSettingsController::class, 'update'])->name('site-settings.update');
 
         // Instant Orders
         Route::resource('instant-orders', AdminInstantOrderController::class)->whereNumber('instantOrder');
