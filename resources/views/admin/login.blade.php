@@ -45,7 +45,7 @@
         </form>
 
         <p style="text-align:center;margin-top:2rem;font-size:.72rem;color:var(--text-3);">
-            Made by <strong>Muhallabia · مهلبية</strong>
+            Made by <strong>Muhallabia</strong>
         </p>
     </div>
 </div>
