@@ -1,6 +1,6 @@
 FROM php:8.2-apache
 
-# تثبيت الحزم الأساسية وأدوات الـ ZIP
+# تثبيت متطلبات النظام الأساسية
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
@@ -10,10 +10,20 @@ RUN apt-get update && apt-get install -y \
     unzip \
     git \
     curl \
-    libxml2-dev
+    libxml2-dev \
+    gnupg2 \
+    unixodbc-dev
 
-# تثبيت امتدادات PHP الضرورية
-RUN docker-php-ext-install pdo_mysql gd zip xml
+# تثبيت أدوات مايكروسوفت لـ SQL Server (ODBC Driver 18)
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
+    && curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list \
+    && apt-get update \
+    && ACCEPT_EULA=Y apt-get install -y msodbcsql18
+
+# تثبيت امتدادات PHP لـ MySQL و SQL Server و Zip
+RUN docker-php-ext-install pdo_mysql gd zip xml \
+    && pecl install sqlsrv pdo_sqlsrv \
+    && docker-php-ext-enable sqlsrv pdo_sqlsrv
 
 # تثبيت Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -32,7 +42,7 @@ COPY . /var/www/html
 
 WORKDIR /var/www/html
 
-# تشغيل Composer مع تجاوز قيود المنصة والتحديث لضمان عدم توقف البناء
+# تشغيل Composer لتثبيت الحزم
 RUN composer update --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-reqs
 
 # ضبط الصلاحيات للمجلدات الحيوية
