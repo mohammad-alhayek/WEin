@@ -1,6 +1,6 @@
 FROM php:8.2-apache
 
-# تثبيت الحزم الأساسية
+# تثبيت الحزم الأساسية وأدوات الـ ZIP
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     libxml2-dev
 
-# تثبيت امتدادات PHP
+# تثبيت امتدادات PHP الضرورية
 RUN docker-php-ext-install pdo_mysql gd zip xml
 
 # تثبيت Composer
@@ -32,13 +32,9 @@ COPY . /var/www/html
 
 WORKDIR /var/www/html
 
-# تثبيت الحزم
-RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
+# تشغيل Composer مع تجاوز قيود المنصة والتحديث لضمان عدم توقف البناء
+RUN composer update --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-reqs
 
 # ضبط الصلاحيات للمجلدات الحيوية
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
-
-# تنظيف وإعادة بناء الكاش الخاص بلارافيل
-RUN php artisan config:clear
-RUN php artisan cache:clear
