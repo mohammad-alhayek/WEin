@@ -1,50 +1,69 @@
-FROM php:8.2-apache
+FROM php:8.4-apache
 
-# تثبيت متطلبات النظام الأساسية
+# تثبيت متطلبات النظام
 RUN apt-get update && apt-get install -y \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    libzip-dev \
-    zip \
-    unzip \
     git \
     curl \
+    unzip \
+    zip \
+    libzip-dev \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
     libxml2-dev \
     gnupg2 \
-    unixodbc-dev
+    unixodbc-dev \
+    apt-transport-https \
+    ca-certificates
 
-# تثبيت أدوات مايكروسوفت لـ SQL Server (ODBC Driver 18)
-RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
-    && curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list \
-    && apt-get update \
-    && ACCEPT_EULA=Y apt-get install -y msodbcsql18
+# تثبيت Microsoft ODBC Driver 18
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
+    curl https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
+    apt-get update && \
+    ACCEPT_EULA=Y apt-get install -y msodbcsql18
 
-# تثبيت امتدادات PHP لـ MySQL و SQL Server و Zip
-RUN docker-php-ext-install pdo_mysql gd zip xml \
-    && pecl install sqlsrv pdo_sqlsrv \
-    && docker-php-ext-enable sqlsrv pdo_sqlsrv
+# تثبيت امتدادات PHP
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
+    docker-php-ext-install \
+        pdo_mysql \
+        zip \
+        gd \
+        xml
+
+# تثبيت sqlsrv
+RUN pecl install sqlsrv pdo_sqlsrv && \
+    docker-php-ext-enable sqlsrv pdo_sqlsrv
 
 # تثبيت Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# تفعيل مود الـ Apache Rewrite
+# تفعيل Apache Rewrite
 RUN a2enmod rewrite
 
-# تغيير مسار الـ Apache DocumentRoot لمجلد public
-ENV APACHE_DOCUMENT_ROOT /var/www/html/public
-EXPOSE 80
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
-RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
+# جعل public هو DocumentRoot
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
-# نسخ ملفات المشروع
-COPY . /var/www/html
+RUN sed -ri \
+    -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
+    /etc/apache2/sites-available/*.conf \
+    /etc/apache2/apache2.conf \
+    /etc/apache2/conf-available/*.conf
 
+# نسخ المشروع
 WORKDIR /var/www/html
+COPY . .
 
-# تشغيل Composer لتثبيت الحزم
-RUN composer update --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-reqs
+# تثبيت الحزم
+RUN composer install \
+    --no-dev \
+    --optimize-autoloader \
+    --no-interaction
 
-# ضبط الصلاحيات للمجلدات الحيوية
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+# صلاحيات Laravel
+RUN mkdir -p storage bootstrap/cache && \
+    chown -R www-data:www-data storage bootstrap/cache && \
+    chmod -R 775 storage bootstrap/cache
+
+EXPOSE 80
+
+CMD ["apache2-foreground"]
