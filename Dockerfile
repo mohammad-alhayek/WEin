@@ -1,6 +1,6 @@
 FROM php:8.2-apache
 
-# تثبيت الحزم الأساسية وأدوات الـ ZIP و Git و libxml وغيرها
+# تثبيت الحزم الأساسية
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     libxml2-dev
 
-# تثبيت امتدادات PHP الضرورية للارافيل
+# تثبيت امتدادات PHP
 RUN docker-php-ext-install pdo_mysql gd zip xml
 
 # تثبيت Composer
@@ -32,8 +32,13 @@ COPY . /var/www/html
 
 WORKDIR /var/www/html
 
-# تشغيل Composer لتثبيت الحزم مع تجاهل توافقية الـ PHP إن وجدت مشاكل في الإصدارات
+# تثبيت الحزم
 RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
 
-# ضبط الصلاحيات
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# ضبط الصلاحيات للمجلدات الحيوية
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+
+# تنظيف وإعادة بناء الكاش الخاص بلارافيل
+RUN php artisan config:clear
+RUN php artisan cache:clear
