@@ -1,6 +1,5 @@
 FROM php:8.4-apache-bookworm
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -18,7 +17,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 
-# Install Microsoft ODBC Driver 18 for SQL Server
+# Microsoft SQL Server ODBC Driver 18
 RUN mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
     | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg \
@@ -29,31 +28,31 @@ RUN mkdir -p /etc/apt/keyrings \
     && rm -rf /var/lib/apt/lists/*
 
 
-# Install PHP extensions
+# PHP Extensions
 RUN docker-php-ext-configure gd \
-        --with-freetype \
-        --with-jpeg \
+    --with-freetype \
+    --with-jpeg \
     && docker-php-ext-install \
-        pdo \
-        zip \
-        gd \
-        xml
+    pdo_mysql \
+    zip \
+    gd \
+    xml
 
 
-# Install SQL Server PHP extensions
+# SQL Server PHP Extensions
 RUN pecl install sqlsrv pdo_sqlsrv \
     && docker-php-ext-enable sqlsrv pdo_sqlsrv
 
 
-# Install Composer
+# Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 
-# Enable Apache rewrite
+# Apache rewrite
 RUN a2enmod rewrite
 
 
-# Laravel public directory
+# Laravel public folder
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
 RUN sed -ri \
@@ -65,15 +64,28 @@ RUN sed -ri \
 WORKDIR /var/www/html
 
 
-# Copy application
 COPY . .
 
 
-# Install Laravel dependencies
+# Install dependencies
 RUN composer install \
     --no-dev \
     --optimize-autoloader \
     --no-interaction
+
+
+# Laravel required folders
+RUN mkdir -p \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    bootstrap/cache
+
+
+# Clear Laravel caches
+RUN php artisan config:clear || true \
+    && php artisan cache:clear || true \
+    && php artisan view:clear || true
 
 
 # Permissions
