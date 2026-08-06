@@ -1,13 +1,17 @@
 FROM php:8.2-apache
 
-# تثبيت الحزم المطلوبة للارافيل
+# تثبيت الحزم المطلوبة للارافيل وأداة Composer
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
     zip \
     git \
-    curl
+    curl \
+    unzip
+
+# تثبيت Composer داخل الحاوية
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 RUN docker-php-ext-install pdo_mysql gd
 
@@ -20,10 +24,13 @@ EXPOSE 80
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
-# نسخ ملفات المشروع
+# نسخ ملفات المشروع إلى الحاوية
 COPY . /var/www/html
 
-# ضبط الصلاحيات
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-
 WORKDIR /var/www/html
+
+# تشغيل Composer لتثبيت الحزم المطلوبة وتحسين الأداء
+RUN composer install --no-dev --optimize-autoloader
+
+# ضبط الصلاحيات لمجلدات التخزين
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
