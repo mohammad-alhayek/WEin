@@ -1,5 +1,6 @@
 FROM php:8.4-apache-bookworm
 
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -17,7 +18,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 
-# Microsoft SQL Server ODBC Driver 18
+# Install Microsoft SQL Server ODBC Driver 18
 RUN mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
     | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg \
@@ -28,31 +29,59 @@ RUN mkdir -p /etc/apt/keyrings \
     && rm -rf /var/lib/apt/lists/*
 
 
-# PHP Extensions
+# Install PHP extensions
 RUN docker-php-ext-configure gd \
     --with-freetype \
     --with-jpeg \
     && docker-php-ext-install \
+    pdo \
     pdo_mysql \
     zip \
     gd \
     xml
 
 
-# SQL Server PHP Extensions
+# Install SQL Server PHP extensions
 RUN pecl install sqlsrv pdo_sqlsrv \
     && docker-php-ext-enable sqlsrv pdo_sqlsrv
 
 
-# Composer
+# Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 
-# Apache rewrite
+# Enable Apache rewrite
 RUN a2enmod rewrite
 
 
-# Laravel public folder
+WORKDIR /var/www/html
+
+
+# Copy project
+COPY . .
+
+
+# Install Laravel dependencies
+RUN composer install \
+    --no-dev \
+    --optimize-autoloader \
+    --no-interaction
+
+
+# Create Laravel required directories
+RUN mkdir -p \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    bootstrap/cache
+
+
+# Fix permissions
+RUN chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
+
+
+# Configure Apache to use Laravel public folder
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
 RUN sed -ri \
@@ -61,36 +90,12 @@ RUN sed -ri \
     /etc/apache2/apache2.conf
 
 
-WORKDIR /var/www/html
+# Clear caches (ignore errors during build)
+RUN php artisan optimize:clear || true
 
 
-COPY . .
-
-
-# Install dependencies
-RUN composer install \
-    --no-dev \
-    --optimize-autoloader \
-    --no-interaction
-
-
-# Laravel required folders
-RUN mkdir -p \
-    storage/framework/cache \
-    storage/framework/sessions \
-    storage/framework/views \
-    bootstrap/cache
-
-
-# Clear Laravel caches
-RUN php artisan config:clear || true \
-    && php artisan cache:clear || true \
-    && php artisan view:clear || true
-
-
-# Permissions
-RUN chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
+# Check Apache config
+RUN apache2ctl configtest
 
 
 EXPOSE 80
