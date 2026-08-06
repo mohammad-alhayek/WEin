@@ -1,5 +1,6 @@
- FROM php:8.4-apache-bookworm
+FROM php:8.4-apache-bookworm
 
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -13,39 +14,46 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
-    libxml2-dev
+    libxml2-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 
-# Microsoft SQL Server ODBC Driver 18
+# Install Microsoft ODBC Driver 18 for SQL Server
 RUN mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
     | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg \
     && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" \
     > /etc/apt/sources.list.d/mssql-release.list \
     && apt-get update \
-    && ACCEPT_EULA=Y apt-get install -y msodbcsql18
+    && ACCEPT_EULA=Y apt-get install -y msodbcsql18 \
+    && rm -rf /var/lib/apt/lists/*
 
 
+# Install PHP extensions
 RUN docker-php-ext-configure gd \
         --with-freetype \
         --with-jpeg \
     && docker-php-ext-install \
-        pdo_mysql \
+        pdo \
         zip \
         gd \
         xml
 
 
+# Install SQL Server PHP extensions
 RUN pecl install sqlsrv pdo_sqlsrv \
     && docker-php-ext-enable sqlsrv pdo_sqlsrv
 
 
+# Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 
+# Enable Apache rewrite
 RUN a2enmod rewrite
 
 
+# Laravel public directory
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
 RUN sed -ri \
@@ -56,24 +64,24 @@ RUN sed -ri \
 
 WORKDIR /var/www/html
 
+
+# Copy application
 COPY . .
 
 
+# Install Laravel dependencies
 RUN composer install \
     --no-dev \
     --optimize-autoloader \
     --no-interaction
 
 
-RUN php artisan config:clear \
-    && php artisan cache:clear \
-    && php artisan view:clear
-
-
+# Permissions
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
 
 EXPOSE 80
+
 
 CMD ["apache2-foreground"]
