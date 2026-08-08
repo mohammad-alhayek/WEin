@@ -24,10 +24,25 @@ RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framewor
 
 RUN chown -R www-data:www-data storage bootstrap/cache && chmod -R 775 storage bootstrap/cache
 
-RUN printf '%s\n' '<VirtualHost *:80>' 'ServerName localhost' 'DocumentRoot /var/www/html/public' '<Directory /var/www/html/public>' 'AllowOverride All' 'Require all granted' 'Options FollowSymLinks' 'DirectoryIndex index.php index.html' '</Directory>' 'ErrorLog ${APACHE_LOG_DIR}/error.log' 'CustomLog ${APACHE_LOG_DIR}/access.log combined' '</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+RUN printf '%s\n' \
+'<VirtualHost *:80>' \
+'    ServerName localhost' \
+'    DocumentRoot /var/www/html/public' \
+'' \
+'    <Directory /var/www/html/public>' \
+'        AllowOverride All' \
+'        Require all granted' \
+'        Options FollowSymLinks' \
+'        DirectoryIndex index.php index.html' \
+'    </Directory>' \
+'' \
+'    ErrorLog ${APACHE_LOG_DIR}/error.log' \
+'    CustomLog ${APACHE_LOG_DIR}/access.log combined' \
+'</VirtualHost>' \
+> /etc/apache2/sites-available/000-default.conf
 
 RUN apache2ctl configtest
 
 EXPOSE 80
 
-CMD ["sh", "-c", "sed -i "s#Listen 80#Listen 0.0.0.0:${PORT}#" /etc/apache2/ports.conf && sed -i "s#<VirtualHost \*:80>#<VirtualHost *:${PORT}>#" /etc/apache2/sites-available/000-default.conf && apache2-foreground"]
+CMD ["apache2-foreground"]
