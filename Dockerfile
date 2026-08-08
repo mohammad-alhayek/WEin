@@ -9,6 +9,20 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 RUN a2enmod rewrite
 
+# تقليل عدد الـ Apache workers لتخفيف استهلاك الذاكرة (مهم على خطط الرام المحدودة)
+RUN printf '%s\n' \
+    '<IfModule mpm_prefork_module>' \
+    'StartServers 1' \
+    'MinSpareServers 1' \
+    'MaxSpareServers 2' \
+    'MaxRequestWorkers 3' \
+    'MaxConnectionsPerChild 0' \
+    '</IfModule>' \
+    > /etc/apache2/mods-available/mpm_prefork.conf
+
+# تقليل memory_limit لـ PHP احتياطًا
+RUN echo "memory_limit = 128M" > /usr/local/etc/php/conf.d/memory-limit.ini
+
 WORKDIR /var/www/html
 COPY . .
 
