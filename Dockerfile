@@ -69,7 +69,7 @@ RUN mkdir -p \
     storage/logs \
     bootstrap/cache
 
-# Configure Laravel permissions
+# Configure permissions
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
@@ -81,7 +81,7 @@ RUN sed -ri \
     /etc/apache2/sites-available/*.conf \
     /etc/apache2/apache2.conf
 
-# Apache ServerName
+# Configure Apache ServerName
 RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
 # Create Render startup script
@@ -91,7 +91,7 @@ RUN printf '%s\n' \
     '' \
     'PORT=${PORT:-10000}' \
     '' \
-    'echo "Starting Laravel application on port ${PORT}"' \
+    'echo "Starting Laravel on port ${PORT}"' \
     '' \
     'sed -i "s/^Listen .*/Listen 0.0.0.0:${PORT}/" /etc/apache2/ports.conf' \
     'sed -i "s/<VirtualHost [^>]*:80>/<VirtualHost 0.0.0.0:${PORT}>/" /etc/apache2/sites-available/000-default.conf' \
@@ -103,11 +103,12 @@ RUN printf '%s\n' \
     > /usr/local/bin/start-render.sh \
     && chmod +x /usr/local/bin/start-render.sh
 
-# Verify Apache configuration during build
+# Verify Apache configuration
 RUN apache2ctl configtest
 
+# Render detects the runtime port
 EXPOSE 80
 
-# Start Apache using Render's PORT
+# Start Laravel / Apache
 CMD ["/usr/local/bin/start-render.sh"]
 ```
