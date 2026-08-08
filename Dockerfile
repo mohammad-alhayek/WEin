@@ -34,4 +34,4 @@ RUN apache2ctl configtest
 
 EXPOSE 80
 
-CMD ["apache2-foreground"]
+CMD ["sh", "-c", "sed -i \"s/:80>/:${PORT}>/g\" /etc/apache2/sites-available/000-default.conf && sed -i \"s/^Listen 80$/Listen ${PORT}/\" /etc/apache2/ports.conf && apache2-foreground"]
