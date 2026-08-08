@@ -81,7 +81,7 @@ storage/framework/sessions
 storage/framework/views 
 bootstrap/cache
 
-# Configure permissions
+# Configure Laravel permissions
 
 RUN chown -R www-data:www-data storage bootstrap/cache 
 && chmod -R 775 storage bootstrap/cache
