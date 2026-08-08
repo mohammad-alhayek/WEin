@@ -12,10 +12,10 @@ RUN a2enmod rewrite
 # تقليل عدد الـ Apache workers لتخفيف استهلاك الذاكرة (مهم على خطط الرام المحدودة)
 RUN printf '%s\n' \
     '<IfModule mpm_prefork_module>' \
-    'StartServers 1' \
-    'MinSpareServers 1' \
-    'MaxSpareServers 2' \
-    'MaxRequestWorkers 3' \
+    'StartServers 2' \
+    'MinSpareServers 2' \
+    'MaxSpareServers 5' \
+    'MaxRequestWorkers 10' \
     'MaxConnectionsPerChild 0' \
     '</IfModule>' \
     > /etc/apache2/mods-available/mpm_prefork.conf
