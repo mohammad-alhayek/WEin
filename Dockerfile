@@ -30,4 +30,4 @@ RUN apache2ctl configtest
 
 EXPOSE 80
 
-CMD ["sh", "-c", "sed -i "s#Listen 80#Listen 0.0.0.0:${PORT}#" /etc/apache2/ports.conf && sed -i "s#<VirtualHost \*:80>#<VirtualHost *:${PORT}>#" /etc/apache2/sites-available/000-default.conf && apache2-foreground"]
+CMD ["sh", "-c", "sed -i 's#Listen 80#Listen 0.0.0.0:'\"$PORT\"'#' /etc/apache2/ports.conf && sed -i 's#<VirtualHost \\*:80>#<VirtualHost *:'\"$PORT\"'>#' /etc/apache2/sites-available/000-default.conf && apache2-foreground"]
