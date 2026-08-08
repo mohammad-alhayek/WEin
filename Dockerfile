@@ -54,6 +54,11 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 RUN a2enmod rewrite
 
+# Apache ServerName
+
+RUN echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf 
+&& a2enconf servername
+
 WORKDIR /var/www/html
 
 # Copy Laravel project
@@ -68,7 +73,7 @@ RUN composer install
 --no-interaction 
 --no-progress
 
-# Create Laravel directories
+# Create Laravel required directories
 
 RUN mkdir -p 
 storage/framework/cache 
@@ -76,63 +81,47 @@ storage/framework/sessions
 storage/framework/views 
 bootstrap/cache
 
-# Permissions
+# Laravel permissions
 
 RUN chown -R www-data:www-data storage bootstrap/cache 
 && chmod -R 775 storage bootstrap/cache
 
-# Configure Apache document root
+# Configure Apache VirtualHost for Laravel
 
-ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+RUN cat > /etc/apache2/sites-available/000-default.conf <<'EOF'
+<VirtualHost *:80>
+ServerName localhost
 
-RUN sed -ri 
--e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' 
-/etc/apache2/sites-available/*.conf 
-/etc/apache2/apache2.conf
+```
+DocumentRoot /var/www/html/public
 
-# Apache configuration
+<Directory /var/www/html/public>
+    AllowOverride All
+    Require all granted
+    Options FollowSymLinks
+</Directory>
 
-RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
+ErrorLog ${APACHE_LOG_DIR}/error.log
+CustomLog ${APACHE_LOG_DIR}/access.log combined
 
-# Render uses the PORT environment variable.
+DirectoryIndex index.php index.html
+```
 
-# Default to 80 if PORT is not provided.
+</VirtualHost>
+EOF
 
-RUN printf '%s\n' 
-'Listen 80' 
-> /etc/apache2/ports.conf
+# Make sure Apache listens on all interfaces
 
-# Do NOT run:
+RUN sed -i 's/^Listen 80$/Listen 0.0.0.0:80/' /etc/apache2/ports.conf
 
-# php artisan optimize:clear
+# DO NOT run Laravel artisan cache/database commands during build.
 
-# php artisan cache:clear
+# Render environment variables and SQL Server are available at runtime.
 
-# php artisan config:clear
+# Verify Apache configuration
 
-# php artisan view:clear
-
-#
-
-# These can attempt to connect to SQL Server during Docker build.
-
-# Create startup script
-
-RUN printf '%s\n' 
-'#!/bin/sh' 
-'set -e' 
-'' 
-'PORT="${PORT:-80}"' 
-'' 
-'sed -i "s/^Listen .*/Listen ${PORT}/" /etc/apache2/ports.conf' 
-'sed -i "s/<VirtualHost [^>]*:80>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-available/000-default.conf' 
-'' 
-'echo "Starting Apache on port ${PORT}"' 
-'apache2ctl configtest' 
-'exec apache2-foreground' 
-> /usr/local/bin/start-render.sh 
-&& chmod +x /usr/local/bin/start-render.sh
+RUN apache2ctl configtest
 
 EXPOSE 80
 
-CMD ["/usr/local/bin/start-render.sh"]
+CMD ["apache2-foreground"]
