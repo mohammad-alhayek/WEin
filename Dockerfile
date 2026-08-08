@@ -1,3 +1,4 @@
+```dockerfile
 FROM php:8.4-apache-bookworm
 
 # Install system dependencies
@@ -20,23 +21,23 @@ RUN apt-get update && apt-get install -y \
 # Install Microsoft SQL Server ODBC Driver 18
 RUN mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
-    | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg \
+        | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg \
     && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" \
-    > /etc/apt/sources.list.d/mssql-release.list \
+        > /etc/apt/sources.list.d/mssql-release.list \
     && apt-get update \
     && ACCEPT_EULA=Y apt-get install -y msodbcsql18 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
 RUN docker-php-ext-configure gd \
-    --with-freetype \
-    --with-jpeg \
+        --with-freetype \
+        --with-jpeg \
     && docker-php-ext-install \
-    pdo \
-    pdo_mysql \
-    zip \
-    gd \
-    xml
+        pdo \
+        pdo_mysql \
+        zip \
+        gd \
+        xml
 
 # Install SQL Server PHP extensions
 RUN pecl install sqlsrv pdo_sqlsrv \
@@ -65,13 +66,14 @@ RUN mkdir -p \
     storage/framework/cache \
     storage/framework/sessions \
     storage/framework/views \
+    storage/logs \
     bootstrap/cache
 
 # Configure Laravel permissions
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
-# Configure Apache to use Laravel public folder
+# Configure Apache document root
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
 RUN sed -ri \
@@ -79,15 +81,33 @@ RUN sed -ri \
     /etc/apache2/sites-available/*.conf \
     /etc/apache2/apache2.conf
 
-# Configure Apache
-RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf \
-    && sed -i 's/^Listen 80$/Listen 0.0.0.0:80/' /etc/apache2/ports.conf \
-    && sed -i 's/<VirtualHost \*:80>/<VirtualHost 0.0.0.0:80>/' \
-    /etc/apache2/sites-available/000-default.conf
+# Apache ServerName
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
-# Verify Apache configuration
+# Create Render startup script
+RUN printf '%s\n' \
+    '#!/bin/bash' \
+    'set -e' \
+    '' \
+    'PORT=${PORT:-10000}' \
+    '' \
+    'echo "Starting Laravel application on port ${PORT}"' \
+    '' \
+    'sed -i "s/^Listen .*/Listen 0.0.0.0:${PORT}/" /etc/apache2/ports.conf' \
+    'sed -i "s/<VirtualHost [^>]*:80>/<VirtualHost 0.0.0.0:${PORT}>/" /etc/apache2/sites-available/000-default.conf' \
+    '' \
+    'echo "Apache configuration:"' \
+    'apache2ctl -S || true' \
+    '' \
+    'exec apache2-foreground' \
+    > /usr/local/bin/start-render.sh \
+    && chmod +x /usr/local/bin/start-render.sh
+
+# Verify Apache configuration during build
 RUN apache2ctl configtest
 
 EXPOSE 80
 
-CMD ["apache2-foreground"]
+# Start Apache using Render's PORT
+CMD ["/usr/local/bin/start-render.sh"]
+```
