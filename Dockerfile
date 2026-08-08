@@ -12,8 +12,6 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 RUN a2enmod rewrite
 
-RUN echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf && a2enconf servername
-
 WORKDIR /var/www/html
 
 COPY . .
@@ -24,10 +22,12 @@ RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framewor
 
 RUN chown -R www-data:www-data storage bootstrap/cache && chmod -R 775 storage bootstrap/cache
 
-RUN printf '%s\n' '<VirtualHost *:80>' 'ServerName localhost' 'DocumentRoot /var/www/html/public' '<Directory /var/www/html/public>' 'AllowOverride All' 'Require all granted' 'Options FollowSymLinks' 'DirectoryIndex index.php index.html' '</Directory>' 'ErrorLog ${APACHE_LOG_DIR}/error.log' 'CustomLog ${APACHE_LOG_DIR}/access.log combined' '</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+# ضبط بورت الأباتشي ليقرأ المتغير الديناميكي PORT من Render
+RUN sed -i 's/Listen 80/Listen ${PORT}/g' /etc/apache2/ports.conf
+RUN sed -i 's/:80/:$PORT/g' /etc/apache2/sites-available/000-default.conf
 
-RUN apache2ctl configtest
+RUN printf '%s\n' '<VirtualHost *:${PORT}>' 'ServerName localhost' 'DocumentRoot /var/www/html/public' '<Directory /var/www/html/public>' 'AllowOverride All' 'Require all granted' 'Options FollowSymLinks' 'DirectoryIndex index.php index.html' '</Directory>' 'ErrorLog ${APACHE_LOG_DIR}/error.log' 'CustomLog ${APACHE_LOG_DIR}/access.log combined' '</VirtualHost>' > /etc/apache2/sites-available/000-default.conf
 
-EXPOSE 80
+EXPOSE 10000
 
-CMD ["sh", "-c", "sed -i 's#Listen 80#Listen 0.0.0.0:'\"$PORT\"'#' /etc/apache2/ports.conf && sed -i 's#<VirtualHost \\*:80>#<VirtualHost *:'\"$PORT\"'>#' /etc/apache2/sites-available/000-default.conf && apache2-foreground"]
+CMD ["apache2-foreground"]
