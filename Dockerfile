@@ -71,7 +71,7 @@ RUN mkdir -p \
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
-# Configure Apache
+# Configure Apache to use Laravel public folder
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
 RUN sed -ri \
@@ -79,14 +79,11 @@ RUN sed -ri \
     /etc/apache2/sites-available/*.conf \
     /etc/apache2/apache2.conf
 
-# Explicitly configure Apache to listen on port 80
+# Configure Apache
 RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf \
     && sed -i 's/^Listen 80$/Listen 0.0.0.0:80/' /etc/apache2/ports.conf \
     && sed -i 's/<VirtualHost \*:80>/<VirtualHost 0.0.0.0:80>/' \
     /etc/apache2/sites-available/000-default.conf
-
-# Clear Laravel caches
-RUN php artisan optimize:clear || true
 
 # Verify Apache configuration
 RUN apache2ctl configtest
