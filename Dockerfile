@@ -1,7 +1,5 @@
 FROM php:8.4-apache-bookworm
 
-# Install system dependencies
-
 RUN apt-get update && apt-get install -y 
 git 
 curl 
@@ -18,8 +16,6 @@ libfreetype6-dev
 libxml2-dev 
 && rm -rf /var/lib/apt/lists/*
 
-# Install Microsoft SQL Server ODBC Driver 18jhghgjh
-
 RUN mkdir -p /etc/apt/keyrings 
 && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc 
 | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg 
@@ -28,8 +24,6 @@ RUN mkdir -p /etc/apt/keyrings
 && apt-get update 
 && ACCEPT_EULA=Y apt-get install -y msodbcsql18 
 && rm -rf /var/lib/apt/lists/*
-
-# Install PHP extensions
 
 RUN docker-php-ext-configure gd 
 --with-freetype 
@@ -41,31 +35,19 @@ zip
 gd 
 xml
 
-# Install SQL Server PHP extensions
-
 RUN pecl install sqlsrv pdo_sqlsrv 
 && docker-php-ext-enable sqlsrv pdo_sqlsrv
 
-# Install Composer
-
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Enable Apache rewrite
-
 RUN a2enmod rewrite
-
-# Configure Apache ServerName
 
 RUN echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf 
 && a2enconf servername
 
 WORKDIR /var/www/html
 
-# Copy Laravel project
-
 COPY . .
-
-# Install Laravel dependencies
 
 RUN composer install 
 --no-dev 
@@ -73,20 +55,14 @@ RUN composer install
 --no-interaction 
 --no-progress
 
-# Create Laravel directories
-
 RUN mkdir -p 
 storage/framework/cache 
 storage/framework/sessions 
 storage/framework/views 
 bootstrap/cache
 
-# Configure Laravel permissions
-
 RUN chown -R www-data:www-data storage bootstrap/cache 
 && chmod -R 775 storage bootstrap/cache
-
-# Configure Apache for Laravel
 
 RUN cat > /etc/apache2/sites-available/000-default.conf <<'EOF'
 <VirtualHost *:80>
@@ -110,15 +86,7 @@ DirectoryIndex index.php index.html
 </VirtualHost>
 EOF
 
-# Make Apache listen on port 80
-
 RUN sed -i 's/^Listen 80$/Listen 0.0.0.0:80/' /etc/apache2/ports.conf
-
-# Do NOT run artisan cache/database commands during build.
-
-# Database is available only when the container is running.
-
-# Verify Apache configuration
 
 RUN apache2ctl configtest
 
