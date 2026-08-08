@@ -54,7 +54,7 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 RUN a2enmod rewrite
 
-# Apache ServerName
+# Configure Apache ServerName
 
 RUN echo "ServerName localhost" > /etc/apache2/conf-available/servername.conf 
 && a2enconf servername
@@ -73,7 +73,7 @@ RUN composer install
 --no-interaction 
 --no-progress
 
-# Create Laravel required directories
+# Create Laravel directories
 
 RUN mkdir -p 
 storage/framework/cache 
@@ -81,12 +81,12 @@ storage/framework/sessions
 storage/framework/views 
 bootstrap/cache
 
-# Laravel permissions
+# Configure Laravel permissions
 
 RUN chown -R www-data:www-data storage bootstrap/cache 
 && chmod -R 775 storage bootstrap/cache
 
-# Configure Apache VirtualHost for Laravel
+# Configure Apache for Laravel
 
 RUN cat > /etc/apache2/sites-available/000-default.conf <<'EOF'
 <VirtualHost *:80>
@@ -110,13 +110,13 @@ DirectoryIndex index.php index.html
 </VirtualHost>
 EOF
 
-# Make sure Apache listens on all interfaces
+# Make Apache listen on port 80
 
 RUN sed -i 's/^Listen 80$/Listen 0.0.0.0:80/' /etc/apache2/ports.conf
 
-# DO NOT run Laravel artisan cache/database commands during build.
+# Do NOT run artisan cache/database commands during build.
 
-# Render environment variables and SQL Server are available at runtime.
+# Database is available only when the container is running.
 
 # Verify Apache configuration
 
