@@ -1,4 +1,3 @@
-```text
 FROM php:8.4-apache-bookworm
 
 RUN apt-get update && apt-get install -y \
@@ -89,4 +88,4 @@ RUN apache2ctl configtest
 EXPOSE 80
 
 CMD ["/usr/local/bin/start-render.sh"]
-```
+
