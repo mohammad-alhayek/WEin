@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     && rm -rf /var/lib/apt/lists/*
 
-
 # Install Microsoft SQL Server ODBC Driver 18
 RUN mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
@@ -27,7 +26,6 @@ RUN mkdir -p /etc/apt/keyrings \
     && apt-get update \
     && ACCEPT_EULA=Y apt-get install -y msodbcsql18 \
     && rm -rf /var/lib/apt/lists/*
-
 
 # Install PHP extensions
 RUN docker-php-ext-configure gd \
@@ -40,33 +38,27 @@ RUN docker-php-ext-configure gd \
     gd \
     xml
 
-
 # Install SQL Server PHP extensions
 RUN pecl install sqlsrv pdo_sqlsrv \
     && docker-php-ext-enable sqlsrv pdo_sqlsrv
 
-
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
 
 # Enable Apache rewrite
 RUN a2enmod rewrite
 
-
 WORKDIR /var/www/html
 
-
-# Copy project
+# Copy Laravel project
 COPY . .
-
 
 # Install Laravel dependencies
 RUN composer install \
     --no-dev \
     --optimize-autoloader \
-    --no-interaction
-
+    --no-interaction \
+    --no-progress
 
 # Create Laravel required directories
 RUN mkdir -p \
@@ -75,13 +67,11 @@ RUN mkdir -p \
     storage/framework/views \
     bootstrap/cache
 
-
-# Fix permissions
+# Configure Laravel permissions
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
-
-# Configure Apache to use Laravel public folder
+# Configure Apache
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
 RUN sed -ri \
@@ -89,16 +79,18 @@ RUN sed -ri \
     /etc/apache2/sites-available/*.conf \
     /etc/apache2/apache2.conf
 
+# Explicitly configure Apache to listen on port 80
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf \
+    && sed -i 's/^Listen 80$/Listen 0.0.0.0:80/' /etc/apache2/ports.conf \
+    && sed -i 's/<VirtualHost \*:80>/<VirtualHost 0.0.0.0:80>/' \
+    /etc/apache2/sites-available/000-default.conf
 
-# Clear caches (ignore errors during build)
+# Clear Laravel caches
 RUN php artisan optimize:clear || true
 
-
-# Check Apache config
+# Verify Apache configuration
 RUN apache2ctl configtest
 
-
 EXPOSE 80
-
 
 CMD ["apache2-foreground"]
